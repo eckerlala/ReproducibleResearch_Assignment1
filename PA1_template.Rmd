@@ -1,0 +1,153 @@
+---
+title: 'Reproducible Research: Peer Assessment 1'
+author: "Wolfgang Ecker-Lala"
+output:
+  html_document:
+    keep_md: yes
+  word_document: default
+---
+
+
+## Loading and preprocessing the data
+Data will be loaded from the datasource file named "activity.csv". This file has been downloaded and imported by
+```{r,echo=TRUE}
+
+filename <- "C:/MATH-UP/DataScience/Coursera DataScientist/Reproducible Research/Assignment1/activity.csv"
+
+myData <- read.csv(filename,stringsAsFactor=FALSE)
+```
+
+In order to get for field "date" datatype POSIXct we make following transformation:
+Data will be loaded from the datasource file named "activity.csv". This file has been downloaded and imported by
+```{r,echo=TRUE}
+library(lubridate)
+myData$date<-ymd(myData$date)
+```
+
+## What is mean total number of steps taken per day?
+The total number of steps taken per day is calculated by
+
+```{r,echo=TRUE}
+dailyActivity<-aggregate(steps~date,data=myData,FUN=sum)
+```
+
+and immediately we get an histogram by following command
+
+```{r,echo=TRUE}
+plot(dailyActivity$date,dailyActivity$steps,type="h",ylab="steps",xlab="Date",main="steps per day")
+```
+
+The calculated mean of daily sums of steps can be retrieved by
+
+```{r,echo=TRUE}
+stepMean<-mean(dailyActivity$steps)
+```
+
+So for the value of this mean we get `r format(stepMean,digits=10)`.
+
+In same way the calculated median of sums of steps can be retrieved by
+
+```{r,echo=TRUE}
+stepMedian<-median(dailyActivity$steps)
+```
+
+So for the value of this median we get `r format(stepMedian,digits=10)`.
+
+## What is the average daily activity pattern?
+
+In order to be able to answer this question we have to do following transformation and calculation before:
+```{r,echo=TRUE}
+dailyActivityInterval<-aggregate(steps~interval,data=myData,FUN=mean)
+allDaysMean<-mean(myData$steps,na.rm=TRUE)
+```
+
+So the daily activity pattern is like
+
+```{r,echo=TRUE}
+plot(dailyActivityInterval$interval,dailyActivityInterval$steps,type="l",xlab="interval",ylab="steps",main="average steps per interval",ylim=range(dailyActivityInterval$steps))
+par(new=TRUE)
+plot(c(min(dailyActivityInterval$interval),max(dailyActivityInterval$interval)),c(allDaysMean,allDaysMean),axes=FALSE,type="l",col="RED",xlab="",ylab="",main="",ylim=range(dailyActivityInterval$steps))
+```
+
+The red line there shows the average of steps across all days.
+
+Now we like to get the interval on average across all the days with maximum number of steps.
+For this we do following calculation.
+
+```{r,echo=TRUE}
+maxIntervalSteps<-max(dailyActivityInterval$steps)
+maxIntervalBySteps<-dailyActivityInterval[dailyActivityInterval$steps==maxIntervalSteps,]
+```
+
+And the value of the interval with maximum number of steps is `r maxIntervalBySteps$interval`.
+
+## Imputing missing values
+
+The total number of missing values can be calculated by
+```{r,echo=TRUE}
+recordsNA<-length(myData[is.na(myData$steps) | is.na(myData$interval) | is.na(myData$date) ,1])
+```
+and the value is `r recordsNA`.
+
+Missing values can be filled using following strategy:
+
+Use the average value of steps of the corresponding interval over all observations.
+
+A new dataset can be created by
+```{r,echo=TRUE}
+myNewData<-myData
+missingSteps<-which(is.na(myData$steps)==TRUE)
+for (i in 1:length(missingSteps)) {
+  myNewData[missingSteps[i],]$steps<-dailyActivityInterval[dailyActivityInterval$interval==myNewData[missingSteps[i],]$interval,]$steps
+}
+```
+
+In order to be able to plot again a histogram with these modified data we have to do following calculation before.
+```{r,echo=TRUE}
+dailyNewActivity<-aggregate(steps~date,data=myNewData,FUN=sum)
+```
+
+And create the histogram by
+```{r,echo=TRUE}
+plot(dailyNewActivity$date,dailyNewActivity$steps,type="h",ylab="steps",xlab="Date",main="steps per day")
+```
+
+Mean and median of this modified dataset can be calculated by
+```{r,echo=TRUE}
+stepNewMean<-mean(dailyNewActivity$steps)
+stepNewMedian<-median(dailyNewActivity$steps)
+```
+
+And we get following values:
+
+Mean: `r format(stepNewMean,digits=10)`
+
+Median: `r format(stepNewMedian,digits=10)`
+
+These values differ of course from mean and median of original data. Mean and median are equal now.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+We introduce a new field named "dayOfWeek" which can have the value *weekday* (monday, tuesday, wednesday,thursday,friday) or *weekend* (saturday, sunday).
+
+```{r,echo=TRUE}
+myNewData$dayOfWeek$dayOfWeek<-"weekday"
+myNewData[weekdays(myNewData$date)=="Sonntag" | weekdays(myNewData$date)=="Samstag",]$dayOfWeek<-"weekend"
+```
+
+In order to be able to show the differences between activities of weekday and weekend we do following precalculation.
+
+```{r,echo=TRUE}
+weekdayData<-myNewData[myNewData$dayOfWeek=="weekday",]
+weekendData<-myNewData[myNewData$dayOfWeek=="weekend",]
+dailyWeekdayInterval<-aggregate(steps~interval,data=weekdayData,FUN=mean)
+dailyWeekendInterval<-aggregate(steps~interval,data=weekendData,FUN=mean)
+```
+
+The following panel plot shows now the differences.
+
+```{r,echo=TRUE}
+par(mfrow=c(2,1))
+plot(dailyWeekendInterval$interval,dailyWeekendInterval$steps,type="l",xlab="interval",ylab="number of steps",main="weekend",ylim=range(dailyWeekendInterval$steps))
+plot(dailyWeekdayInterval$interval,dailyWeekdayInterval$steps,type="l",xlab="interval",ylab="number of steps",main="weekday",ylim=range(dailyWeekdayInterval$steps))
+```
